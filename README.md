@@ -1,4 +1,8 @@
-# E-Commerce · Infraestrutura Moderna e Observabilidade
+# ecommerce-devops-pipeline
+
+> Nome sugerido para este repositório no GitHub: **`ecommerce-devops-pipeline`**
+> (deixa claro tanto o domínio da aplicação quanto o foco do desafio: esteira
+> DevOps com CI/CD, IaC e observabilidade).
 
 Solução do **Desafio Prático Final** (DevOps): API Node.js + Frontend React,
 containerizados, com pipeline CI/CD para Docker Hub, infraestrutura como código
@@ -140,9 +144,7 @@ LocalStack e `terraform destroy` os remove sem erros.
 ## 6. Publicando no GitHub
 
 ```bash
-git add .
-git commit -m "Infra completa: docker, ci/cd, terraform e observabilidade"
-git remote add origin https://github.com/<seu-usuario>/<seu-repo>.git
+git remote add origin https://github.com/<seu-usuario>/ecommerce-devops-pipeline.git
 git push -u origin main
 ```
 
