@@ -69,17 +69,27 @@ latência, taxa de erros, CPU, memória, event loop lag).
 
 Para derrubar tudo: `docker compose down -v`.
 
-## 2. Publicando as imagens no Docker Hub (manual, uma vez)
+## 2. Imagens publicadas no Docker Hub
+
+As imagens já estão publicadas e públicas:
+
+- **API**: [hrvton/ecommerce-api](https://hub.docker.com/r/hrvton/ecommerce-api)
+- **Frontend**: [hrvton/ecommerce-frontend](https://hub.docker.com/r/hrvton/ecommerce-frontend)
+
+```bash
+docker pull hrvton/ecommerce-api:latest
+docker pull hrvton/ecommerce-frontend:latest
+```
+
+Para publicar manualmente uma nova versão (fora da pipeline):
 
 ```bash
 docker login
-docker build -t <seu-usuario>/ecommerce-api:latest .
-docker build -t <seu-usuario>/ecommerce-frontend:latest ./frontend
-docker push <seu-usuario>/ecommerce-api:latest
-docker push <seu-usuario>/ecommerce-frontend:latest
+docker build -t hrvton/ecommerce-api:latest .
+docker build -t hrvton/ecommerce-frontend:latest ./frontend
+docker push hrvton/ecommerce-api:latest
+docker push hrvton/ecommerce-frontend:latest
 ```
-
-Marque os dois repositórios como **públicos** no Docker Hub.
 
 ## 3. Pipeline CI/CD (GitHub Actions)
 
@@ -87,8 +97,8 @@ Arquivo: `.github/workflows/ci-cd.yml`. A cada `push` na branch `main`:
 
 1. Roda os testes unitários da API (`npm run test:unit`).
 2. Se os testes passarem, builda e publica no Docker Hub:
-   - `<usuario>/ecommerce-api:latest` e `:<sha do commit>`
-   - `<usuario>/ecommerce-frontend:latest` e `:<sha do commit>`
+   - `hrvton/ecommerce-api:latest` e `:<sha do commit>`
+   - `hrvton/ecommerce-frontend:latest` e `:<sha do commit>`
 
 ### Configuração necessária no GitHub
 
@@ -141,15 +151,17 @@ LocalStack e `terraform destroy` os remove sem erros.
   o dashboard ao subir o container do Grafana — nada precisa ser configurado
   manualmente na interface.
 
-## 6. Publicando no GitHub
+## 6. Repositório no GitHub
+
+Código-fonte: **https://github.com/hrvtonn/ecommerce-devops-pipeline**
 
 ```bash
-git remote add origin https://github.com/<seu-usuario>/ecommerce-devops-pipeline.git
+git remote add origin https://github.com/hrvtonn/ecommerce-devops-pipeline.git
 git push -u origin main
 ```
 
-Depois de subir, configure os secrets do Docker Hub (seção 3) para a pipeline
-funcionar.
+Os secrets `DOCKERHUB_USERNAME` e `DOCKERHUB_TOKEN` (seção 3) já estão
+configurados no repositório e a pipeline já publicou as imagens com sucesso.
 
 ## 7. Roteiro para o Pitch Executivo (5 minutos)
 
