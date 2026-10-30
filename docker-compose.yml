@@ -45,7 +45,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      NODE_ENV: production
+      APP_ENV: production
       PORT: 3000
       DB_HOST: postgres
       DB_PORT: 5432
