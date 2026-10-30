@@ -1,9 +1,10 @@
-node_modules/
 .env
-coverage/
 *.log
-dist/
 .DS_Store
+
+# Go
+bin/
+coverage.out
 
 # Terraform
 terraform/.terraform/

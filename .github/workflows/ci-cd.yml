@@ -18,16 +18,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-go@v5
         with:
-          node-version: "20"
-          cache: "npm"
+          go-version-file: go.mod
 
-      - name: Instalar dependências
-        run: npm ci
+      - name: Verificar código (go vet)
+        run: go vet ./...
 
       - name: Executar testes unitários
-        run: npm run test:unit
+        run: go test -race ./...
 
   build-and-push-api:
     name: Build & Push - API

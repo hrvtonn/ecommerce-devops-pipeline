@@ -4,7 +4,7 @@
 > (deixa claro tanto o domínio da aplicação quanto o foco do desafio: esteira
 > DevOps com CI/CD, IaC e observabilidade).
 
-Solução do **Desafio Prático Final** (DevOps): API Node.js + Frontend React,
+Solução do **Desafio Prático Final** (DevOps): API em Go + Frontend React,
 containerizados, com pipeline CI/CD para Docker Hub, infraestrutura como código
 via Terraform + LocalStack e observabilidade com Prometheus + Grafana.
 
@@ -13,7 +13,7 @@ via Terraform + LocalStack e observabilidade com Prometheus + Grafana.
 ```
                 ┌──────────────┐        ┌──────────────┐
    usuário ───▶ │  frontend    │  /api ▶│     api      │──▶ Postgres
-                │ React+Nginx  │        │ Node/Express │──▶ Redis
+                │ React+Nginx  │        │   Go + chi   │──▶ Redis
                 └──────────────┘        └──────┬───────┘
                                                 │ /metrics
                                                 ▼
@@ -29,7 +29,8 @@ via Terraform + LocalStack e observabilidade com Prometheus + Grafana.
 
 ```
 .
-├── src/                    # API Node.js/Express (services, controllers, repositories)
+├── cmd/api/                # entrypoint da API Go (serve | migrate | seed | healthcheck)
+├── internal/               # API Go (handlers, services, repositories, validator, cache)
 ├── frontend/               # SPA React (Vite) que consome a API
 ├── Dockerfile              # imagem da API
 ├── frontend/Dockerfile     # imagem do frontend (build + Nginx)
@@ -48,7 +49,7 @@ Pré-requisitos: Docker e Docker Compose instalados.
 ```bash
 cp .env.example .env   # ajuste se quiser, os defaults já funcionam
 docker compose up -d --build
-docker compose exec api npm run seed   # popula categorias/produtos de exemplo
+docker compose exec api /app/ecommerce-api seed   # popula categorias/produtos/clientes de exemplo
 ```
 
 Serviços expostos:
@@ -56,7 +57,7 @@ Serviços expostos:
 | Serviço            | URL                              | Credenciais       |
 |---------------------|-----------------------------------|--------------------|
 | Frontend (React)    | http://localhost:8080            | -                  |
-| API (Node.js)       | http://localhost:3000            | -                  |
+| API (Go)            | http://localhost:3000            | -                  |
 | Swagger da API      | http://localhost:3000/api-docs   | -                  |
 | Métricas Prometheus | http://localhost:3000/metrics    | -                  |
 | Prometheus          | http://localhost:9090            | -                  |
@@ -65,7 +66,7 @@ Serviços expostos:
 
 No Grafana, o datasource do Prometheus e o dashboard **"E-Commerce API -
 Observabilidade"** já vêm provisionados automaticamente (requisições/s, p95 de
-latência, taxa de erros, CPU, memória, event loop lag).
+latência, taxa de erros, CPU, memória, goroutines).
 
 Para derrubar tudo: `docker compose down -v`.
 
@@ -95,7 +96,7 @@ docker push hrvton/ecommerce-frontend:latest
 
 Arquivo: `.github/workflows/ci-cd.yml`. A cada `push` na branch `main`:
 
-1. Roda os testes unitários da API (`npm run test:unit`).
+1. Roda `go vet` e os testes unitários da API (`go test -race ./...`).
 2. Se os testes passarem, builda e publica no Docker Hub:
    - `hrvton/ecommerce-api:latest` e `:<sha do commit>`
    - `hrvton/ecommerce-frontend:latest` e `:<sha do commit>`
@@ -142,10 +143,10 @@ LocalStack e `terraform destroy` os remove sem erros.
 ## 5. Observabilidade (Prometheus + Grafana)
 
 - A API expõe métricas no padrão Prometheus em `GET /metrics`
-  (`src/config/metrics.js`), incluindo:
+  (`internal/metrics/metrics.go`), incluindo:
   - `http_requests_total` (contador por rota/método/status)
   - `http_request_duration_seconds` (histograma de latência)
-  - métricas padrão do Node.js (CPU, memória, event loop lag, GC)
+  - métricas padrão do runtime Go e do processo (CPU, memória, goroutines, GC)
 - `monitoring/prometheus/prometheus.yml` configura o scrape da API a cada 5s.
 - `monitoring/grafana/provisioning/` provisiona automaticamente o datasource e
   o dashboard ao subir o container do Grafana — nada precisa ser configurado
@@ -179,9 +180,13 @@ configurados no repositório e a pipeline já publicou as imagens com sucesso.
 while true; do curl -s http://localhost:3000/api/v1/products > /dev/null; sleep 0.2; done
 ```
 
+> O rate limit padrão é de 100 requisições por IP a cada 15 minutos; para a
+> demo, aumente `RATE_LIMIT_MAX_REQUESTS` no serviço `api` do compose.
+> `/health` e `/metrics` não entram no rate limit.
+
 ## Troubleshooting
 
-- **`npm install`/`npm ci` falha com `EAI_AGAIN` durante o build da imagem**:
+- **`go mod download` ou `npm ci` falha com `EAI_AGAIN` durante o build da imagem**:
   algumas redes/sandboxes bloqueiam a resolução de DNS de dentro do container
   de build. Se isso ocorrer, builde manualmente com a rede do host:
   ```bash
@@ -199,6 +204,28 @@ while true; do curl -s http://localhost:3000/api/v1/products > /dev/null; sleep 
 ## Testes
 
 ```bash
-npm run test:unit         # testes unitários (77 testes, mockados, sem infra)
-npm run test:coverage     # com relatório de cobertura
+go test ./...                            # testes unitários (fakes em memória + miniredis, sem infra)
+go test -race -cover ./...               # com detector de race e cobertura
 ```
+
+Sem Go instalado localmente, rode via Docker:
+
+```bash
+docker run --rm -v "$PWD":/src -w /src golang:1.27-alpine go test ./...
+```
+
+## API em Go
+
+- **Roteamento**: [chi](https://github.com/go-chi/chi); **PostgreSQL**: [pgx](https://github.com/jackc/pgx)
+  (pool + transações); **Redis**: [go-redis](https://github.com/redis/go-redis);
+  **métricas**: [client_golang](https://github.com/prometheus/client_golang); logs com `log/slog`
+  (JSON em produção).
+- Camadas: `httpapi` (rotas, middlewares, handlers) → `validator` → `service`
+  (regras de negócio, cache, transações) → `repository` (SQL).
+- Um único binário com subcomandos: `serve` (padrão, aplica as migrations ao
+  subir), `migrate`, `seed` e `healthcheck` (usado pelo `HEALTHCHECK` da imagem,
+  que é distroless e roda como usuário não-root).
+- Variáveis de ambiente iguais às do `.env.example`; o ambiente é definido por
+  `APP_ENV` (`development`, `production` ou `test`).
+- Swagger UI em `/api-docs` e especificação em `/api-docs.json`
+  (`internal/docs/openapi.json`).

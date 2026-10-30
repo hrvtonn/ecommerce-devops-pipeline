@@ -71,16 +71,16 @@
     },
     {
       "id": 6,
-      "title": "Event loop lag (Node.js)",
+      "title": "Goroutines (Go runtime)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "targets": [
         {
-          "expr": "nodejs_eventloop_lag_seconds{job=\"ecommerce-api\"}",
-          "legendFormat": "lag"
+          "expr": "go_goroutines{job=\"ecommerce-api\"}",
+          "legendFormat": "goroutines"
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
     }
   ]
 }
